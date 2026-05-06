@@ -1,0 +1,14 @@
+{
+  "name": "demo-js-fe",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:sl": "sealights-playwright-plugin playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "sealights-playwright-plugin": "^2.0.137"
+  }
+}

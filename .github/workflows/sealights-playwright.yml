@@ -1,0 +1,157 @@
+name: SeaLights Playwright - JS FE
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sealights-playwright-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PORT: 8080
+  BASE_URL: http://127.0.0.1:8080
+  SL_TEST_STAGE: "Playwright Tests"
+  SL_LAB_ID: "playwrighttests"
+  TERM: xterm
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      # -------------------------
+      # Checkout
+      # -------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # -------------------------
+      # Node setup
+      # -------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install root dependencies
+        run: npm install --ignore-scripts
+
+      # -------------------------
+      # SeaLights token
+      # -------------------------
+      - name: Create SeaLights token file
+        run: |
+          echo "${{ secrets.SL_TOKEN }}" > sltoken.txt
+          chmod 600 sltoken.txt
+
+      # -------------------------
+      # Configure SeaLights build
+      # -------------------------
+      - name: Configure SeaLights build
+        run: |
+          npx slnodejs config \
+            --tokenFile ./sltoken.txt \
+            --appName demo_js_fe \
+            --branchName "${{ github.ref_name }}" \
+            --buildName "$(date +"%y%m%d_%H%M")"
+
+      # -------------------------
+      # Scan + instrument app
+      # -------------------------
+      - name: Scan and instrument FE
+        run: |
+          npx slnodejs scan \
+            --tokenFile ./sltoken.txt \
+            --buildSessionIdFile buildSessionId \
+            --labId playwrighttests \
+            --instrumentForBrowsers \
+            --scanDir ./app \
+            --outputPath sl_app \
+            --scm git \
+            --scmBaseUrl https://github.com/katerinaozerova1/kitchensink \
+            --scmProvider github \
+            --es6Modules
+
+      # -------------------------
+      # Replace app with instrumented version
+      # -------------------------
+      - name: Deploy instrumented app
+        run: |
+          mv app app_original
+          mv sl_app app
+
+      # -------------------------
+      # Export Build Session ID
+      # -------------------------
+      - name: Export build session
+        run: |
+          bsid=$(tr -d ' \t\n\r' < buildSessionId)
+          echo "SL_BUILD_SESSION_ID=$bsid" >> $GITHUB_ENV
+          echo "Build Session ID: $bsid"
+          test -n "$bsid" || (echo "buildSessionId is empty" && exit 1)
+
+      # -------------------------
+      # Start app
+      # -------------------------
+      - name: Start app
+        run: |
+          set -e
+          nohup npm start > server.log 2>&1 &
+          echo $! > server.pid
+
+          for i in $(seq 1 90); do
+            if curl -fsS "$BASE_URL" > /dev/null; then
+              echo "App is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "App failed to start"
+          cat server.log
+          exit 1
+
+      # -------------------------
+      # Install Playwright deps
+      # -------------------------
+      - name: Install Playwright dependencies
+        working-directory: playwright
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Install Playwright browsers
+        working-directory: playwright
+        run: npx playwright install chromium --with-deps
+
+      # -------------------------
+      # Run Playwright with SeaLights
+      # -------------------------
+      - name: Run Playwright tests with SeaLights
+        working-directory: playwright
+        env:
+          BASE_URL: http://127.0.0.1:8080
+          SL_TOKEN: ${{ secrets.SL_TOKEN }}
+          SL_LAB_ID: playwrighttests
+          SL_TEST_STAGE: "Playwright Tests"
+          SL_BUILD_SESSION_ID: ${{ env.SL_BUILD_SESSION_ID }}
+          NODE_DEBUG: sl
+          SL_LOG_LEVEL: debug
+        run: npm run test:sl
+
+      # -------------------------
+      # Cleanup
+      # -------------------------
+      - name: Cleanup
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) 2>/dev/null || true
+          fi
+          rm -f sltoken.txt
+          echo "Cleanup complete"
