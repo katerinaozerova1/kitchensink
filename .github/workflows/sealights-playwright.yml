@@ -42,6 +42,10 @@ jobs:
       - name: Install root dependencies
         run: npm install --ignore-scripts
 
+      # ✅ NEW — Explicitly install SeaLights Node agent
+      - name: Install SeaLights Node agent
+        run: npm install slnodejs@latest --no-save
+
       # -------------------------
       # SeaLights token
       # -------------------------
@@ -74,8 +78,8 @@ jobs:
             --scanDir ./app \
             --outputPath sl_app \
             --scm git \
-            --scmBaseUrl https://github.com/katerinaozerova1/kitchensink \
             --scmProvider github \
+            --scmBaseUrl https://github.com/katerinaozerova1/kitchensink \
             --es6Modules
 
       # -------------------------
