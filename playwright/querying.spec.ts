@@ -1,9 +1,19 @@
-test('query DOM elements', async ({ page }) => {
-  await page.goto('/commands/querying');
+import { test, expect } from '@playwright/test';
 
-  const button = page.locator('#query-btn');
-  await expect(button).toBeVisible();
+test.describe('Querying Elements', () => {
+  test('button interaction', async ({ page }) => {
+    await page.goto('/commands/querying');
 
-  await button.click();
-  await expect(button).toContainText('Clicked');
+    const btn = page.locator('#query-btn');
+    await expect(btn).toBeVisible();
+
+    await btn.click();
+    await expect(btn).toContainText('Clicked');
+  });
+
+  test('contains text', async ({ page }) => {
+    await page.goto('/commands/querying');
+
+    await expect(page.locator('.query-list')).toContainText('apples');
+  });
 });
