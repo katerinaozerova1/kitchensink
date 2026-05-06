@@ -5,7 +5,7 @@
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",
-    "test:sl": "sealights-playwright-plugin playwright test"
+    "test:sl": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
