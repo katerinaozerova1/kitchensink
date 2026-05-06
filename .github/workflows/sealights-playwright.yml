@@ -44,7 +44,7 @@ jobs:
 
       # ✅ NEW — Explicitly install SeaLights Node agent
       - name: Install SeaLights Node agent
-        run: npm install slnodejs@latest --no-save
+        run: npm install slnodejs@6.2.1 --no-save
 
       # -------------------------
       # SeaLights token
