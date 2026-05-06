@@ -1,13 +1,35 @@
-test('fill and submit form', async ({ page }) => {
-  await page.goto('/commands/actions');
+import { test, expect } from '@playwright/test';
 
-  await page.fill('.action-email', 'test@email.com');
-  await page.fill('.action-password', '123456');
+test.describe('Actions', () => {
+  test('type into inputs', async ({ page }) => {
+    await page.goto('/commands/actions');
 
-  await page.check('.action-checkbox');
+    await page.fill('.action-email', 'kat@test.com');
+    await expect(page.locator('.action-email')).toHaveValue('kat@test.com');
+  });
 
-  await page.click('.action-form button');
+  test('checkbox interaction', async ({ page }) => {
+    await page.goto('/commands/actions');
 
-  // No real backend, so just verify UI interaction
-  await expect(page.locator('.action-email')).toHaveValue('test@email.com');
+    await page.check('.action-checkbox');
+    await expect(page.locator('.action-checkbox')).toBeChecked();
+  });
+
+  test('dropdown selection', async ({ page }) => {
+    await page.goto('/commands/actions');
+
+    await page.selectOption('.action-select', 'apples');
+    await expect(page.locator('.action-select')).toHaveValue('apples');
+  });
+
+  test('alert handling', async ({ page }) => {
+    await page.goto('/commands/actions');
+
+    page.on('dialog', async dialog => {
+      expect(dialog.message()).toContain('alert');
+      await dialog.accept();
+    });
+
+    await page.click('.action-alert');
+  });
 });
