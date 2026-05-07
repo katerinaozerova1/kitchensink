@@ -87,6 +87,7 @@ jobs:
       # -------------------------
       - name: Deploy instrumented app
         run: |
+          rm -rf app_original
           mv app app_original
           mv sl_app app
 
@@ -122,31 +123,51 @@ jobs:
           exit 1
 
       # -------------------------
-      # Install Playwright deps
+      # Install Playwright dependencies
       # -------------------------
       - name: Install Playwright dependencies
         working-directory: playwright
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
-
-      - name: Install Playwright browsers
-        working-directory: playwright
-        run: npx playwright install chromium --with-deps
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       # -------------------------
-      # Run Playwright with SeaLights
+      # Install Playwright browsers
+      # -------------------------
+      - name: Install Playwright browsers
+        working-directory: playwright
+        run: |
+          npx playwright install chromium --with-deps
+
+      # -------------------------
+      # Install virtual display
+      # -------------------------
+      - name: Install Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
+      # -------------------------
+      # Run Playwright tests with SeaLights
       # -------------------------
       - name: Run Playwright tests with SeaLights
         working-directory: playwright
         env:
           BASE_URL: http://127.0.0.1:8080
+          CI: true
           SL_TOKEN: ${{ secrets.SL_TOKEN }}
           SL_LAB_ID: playwrighttests
           SL_TEST_STAGE: "Playwright Tests"
           SL_BUILD_SESSION_ID: ${{ env.SL_BUILD_SESSION_ID }}
           NODE_DEBUG: sl
           SL_LOG_LEVEL: debug
-        run: npm run test:sl
+        run: |
+          xvfb-run -a --server-args='-screen 0 1280x1024x24' \
+            npm run test:sl
+
 
       # -------------------------
       # Cleanup
@@ -155,7 +176,12 @@ jobs:
         if: always()
         run: |
           if [ -f server.pid ]; then
-            kill $(cat server.pid) 2>/dev/null || true
+            kill "$(cat server.pid)" 2>/dev/null || true
           fi
+
+          pkill -f "playwright" 2>/dev/null || true
+          pkill -f "node" 2>/dev/null || true
+
           rm -f sltoken.txt
+
           echo "Cleanup complete"
